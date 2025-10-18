@@ -1,0 +1,164 @@
+{
+  "name": "StratAI - Monthly Executive Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-first-of-month",
+      "name": "Schedule - 1st of Month 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Reports",
+          "mode": "list"
+        },
+        "options": {
+          "filterByFormula": "=IS_AFTER({timestamp}, DATEADD(TODAY(), -30, 'days'))"
+        }
+      },
+      "id": "get-monthly-reports",
+      "name": "Get Last 30 Days Reports",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Feedback",
+          "mode": "list"
+        },
+        "options": {
+          "filterByFormula": "=IS_AFTER({timestamp}, DATEADD(TODAY(), -30, 'days'))"
+        }
+      },
+      "id": "get-monthly-feedback",
+      "name": "Get Last 30 Days Feedback",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [450, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reports = $('Get Last 30 Days Reports').all();\nconst feedbacks = $('Get Last 30 Days Feedback').all();\n\nif (reports.length === 0) {\n  return [{ json: { no_data: true } }];\n}\n\n// Calculate metrics\nconst totalReports = reports.length;\nconst confidenceScores = reports.map(r => parseFloat(r.json.fields.confidence_score || 0));\nconst avgConfidence = confidenceScores.reduce((a, b) => a + b, 0) / totalReports;\nconst highConfidence = confidenceScores.filter(s => s >= 75).length;\nconst lowConfidence = confidenceScores.filter(s => s < 60).length;\n\n// Group by company\nconst byCompany = {};\nreports.forEach(r => {\n  const company = r.json.fields.company_name || 'Unknown';\n  if (!byCompany[company]) {\n    byCompany[company] = { count: 0, avgConfidence: 0, scores: [] };\n  }\n  byCompany[company].count++;\n  byCompany[company].scores.push(parseFloat(r.json.fields.confidence_score || 0));\n});\n\nObject.keys(byCompany).forEach(company => {\n  const scores = byCompany[company].scores;\n  byCompany[company].avgConfidence = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);\n});\n\n// Top companies\nconst topCompanies = Object.entries(byCompany)\n  .sort((a, b) => b[1].count - a[1].count)\n  .slice(0, 5)\n  .map(([name, data]) => ({ name, count: data.count, avgConfidence: data.avgConfidence }));\n\n// Feedback metrics\nconst totalFeedback = feedbacks.length;\nconst avgRating = feedbacks.length > 0 \n  ? (feedbacks.reduce((sum, f) => sum + parseInt(f.json.fields.rating || 0), 0) / totalFeedback).toFixed(2)\n  : 'N/A';\nconst recommendRate = feedbacks.length > 0\n  ? ((feedbacks.filter(f => f.json.fields.would_recommend === true).length / totalFeedback) * 100).toFixed(1)\n  : 'N/A';\n\n// Market signals trends\nconst signalTrends = {\n  ai_chip: (reports.reduce((sum, r) => sum + (r.json.fields.ai_chip_rate || 0), 0) / totalReports).toFixed(1),\n  supply_risk: (reports.reduce((sum, r) => sum + (r.json.fields.supply_risk || 0), 0) / totalReports).toFixed(1)\n};\n\n// Get unique users\nconst uniqueUsers = new Set(reports.map(r => r.json.fields.user_email)).size;\n\n// Month metadata\nconst now = new Date();\nconst lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst monthName = lastMonth.toLocaleString('default', { month: 'long', year: 'numeric' });\n\nreturn [{\n  json: {\n    month: monthName,\n    total_reports: totalReports,\n    unique_users: uniqueUsers,\n    avg_confidence: avgConfidence.toFixed(2),\n    high_confidence_count: highConfidence,\n    low_confidence_count: lowConfidence,\n    top_companies: topCompanies,\n    total_feedback: totalFeedback,\n    avg_rating: avgRating,\n    recommend_rate: recommendRate,\n    signal_trends: signalTrends,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "calculate-monthly-metrics",
+      "name": "Calculate Monthly Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 375]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 2000
+        },
+        "systemMessage": "You are an executive summary writer for StratAI, creating monthly strategic intelligence reports for leadership.\n\nYour role: Synthesize monthly usage data into actionable executive insights.\n\nFocus on:\n- Key trends in strategic decision-making\n- Confidence score patterns and implications\n- User adoption and engagement metrics\n- Market signal trends (AI chip demand, supply risk)\n- Quality indicators (feedback, recommendations)\n- Strategic recommendations for product improvement\n\nOutput format: Professional executive summary in markdown, 500-800 words, with:\n- Executive Summary (2-3 sentences)\n- Key Metrics Overview\n- Strategic Insights\n- Usage Trends\n- Product Recommendations\n- Outlook for Next Month\n\nBe data-driven, concise, and actionable.",
+        "text": "=Create an executive summary for StratAI's monthly performance:\n\n**Month:** {{ $json.month }}\n\n**Usage Metrics:**\n- Total Reports Generated: {{ $json.total_reports }}\n- Unique Users: {{ $json.unique_users }}\n- Average Confidence Score: {{ $json.avg_confidence }}%\n- High Confidence Reports (≥75%): {{ $json.high_confidence_count }}\n- Low Confidence Reports (<60%): {{ $json.low_confidence_count }}\n\n**Top Companies by Usage:**\n{{ $json.top_companies.map(c => `- ${c.name}: ${c.count} reports (${c.avgConfidence}% avg confidence)`).join('\\n') }}\n\n**User Satisfaction:**\n- Total Feedback Received: {{ $json.total_feedback }}\n- Average Rating: {{ $json.avg_rating }}/5\n- Would Recommend: {{ $json.recommend_rate }}%\n\n**Market Signal Trends:**\n- AI Chip Demand (avg): {{ $json.signal_trends.ai_chip }}%\n- Supply Chain Risk (avg): {{ $json.signal_trends.supply_risk }}%\n\nProvide strategic analysis and recommendations based on this data."
+      },
+      "id": "generate-executive-summary",
+      "name": "Generate Executive Summary with GPT-4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [850, 375],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": "",
+        "title": "=StratAI Monthly Executive Summary - {{ $('Calculate Monthly Metrics').item.json.month }}",
+        "body": "=# StratAI Monthly Executive Summary\n## {{ $('Calculate Monthly Metrics').item.json.month }}\n\n{{ $json.choices[0].message.content }}\n\n---\n\n## Detailed Metrics\n\n### Usage Statistics\n- **Total Strategic Analyses:** {{ $('Calculate Monthly Metrics').item.json.total_reports }}\n- **Active Users:** {{ $('Calculate Monthly Metrics').item.json.unique_users }}\n- **Average Confidence Score:** {{ $('Calculate Monthly Metrics').item.json.avg_confidence }}%\n- **High Confidence Reports (≥75%):** {{ $('Calculate Monthly Metrics').item.json.high_confidence_count }}\n- **Low Confidence Alerts (<60%):** {{ $('Calculate Monthly Metrics').item.json.low_confidence_count }}\n\n### Customer Satisfaction\n- **Feedback Responses:** {{ $('Calculate Monthly Metrics').item.json.total_feedback }}\n- **Average Rating:** {{ $('Calculate Monthly Metrics').item.json.avg_rating }}/5 ⭐\n- **Recommendation Rate:** {{ $('Calculate Monthly Metrics').item.json.recommend_rate }}%\n\n### Top Companies by Report Volume\n{{ $('Calculate Monthly Metrics').item.json.top_companies.map((c, i) => `${i+1}. **${c.name}** - ${c.count} reports (${c.avgConfidence}% avg confidence)`).join('\\n') }}\n\n### Market Trends Observed\n- **AI Chip Demand Signal:** {{ $('Calculate Monthly Metrics').item.json.signal_trends.ai_chip }}% (average across analyses)\n- **Supply Chain Risk Level:** {{ $('Calculate Monthly Metrics').item.json.signal_trends.supply_risk }}% (average across analyses)\n\n---\n\n*Report generated automatically on {{ $('Calculate Monthly Metrics').item.json.generated_at }}*\n*Powered by StratAI Multi-Agent Intelligence Platform*",
+        "options": {}
+      },
+      "id": "create-summary-doc",
+      "name": "Create Google Doc Summary",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1050, 375],
+      "credentials": {
+        "googleApi": {
+          "id": "2",
+          "name": "Google API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "executives@stratai.com",
+        "toEmail": "leadership@stratai.com",
+        "subject": "=📊 StratAI Monthly Executive Summary - {{ $('Calculate Monthly Metrics').item.json.month }}",
+        "emailType": "html",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }\n    .container { max-width: 800px; margin: 0 auto; background: white; }\n    .header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 40px; text-align: center; }\n    .header h1 { margin: 0; font-size: 32px; }\n    .header p { margin: 10px 0 0 0; opacity: 0.9; }\n    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 30px; background: #f8fafc; }\n    .metric-card { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }\n    .metric-value { font-size: 36px; font-weight: bold; color: #3b82f6; margin: 10px 0; }\n    .metric-label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }\n    .content { padding: 40px; }\n    .section { margin: 30px 0; }\n    .section h2 { color: #1e293b; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }\n    .company-list { list-style: none; padding: 0; }\n    .company-item { padding: 12px; margin: 8px 0; background: #f1f5f9; border-left: 4px solid #3b82f6; border-radius: 4px; }\n    .highlight { background: #dbeafe; padding: 20px; border-radius: 8px; margin: 20px 0; }\n    .cta { text-align: center; padding: 30px; }\n    .cta-button { display: inline-block; background: #3b82f6; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📊 Monthly Executive Summary</h1>\n      <p>{{ $('Calculate Monthly Metrics').item.json.month }}</p>\n    </div>\n    \n    <div class=\"metrics-grid\">\n      <div class=\"metric-card\">\n        <div class=\"metric-label\">Total Reports</div>\n        <div class=\"metric-value\">{{ $('Calculate Monthly Metrics').item.json.total_reports }}</div>\n      </div>\n      <div class=\"metric-card\">\n        <div class=\"metric-label\">Avg Confidence</div>\n        <div class=\"metric-value\">{{ $('Calculate Monthly Metrics').item.json.avg_confidence }}%</div>\n      </div>\n      <div class=\"metric-card\">\n        <div class=\"metric-label\">Active Users</div>\n        <div class=\"metric-value\">{{ $('Calculate Monthly Metrics').item.json.unique_users }}</div>\n      </div>\n    </div>\n    \n    <div class=\"content\">\n      <div class=\"highlight\">\n        <h3 style=\"margin-top: 0;\">🎯 Key Highlights</h3>\n        <p>This month, StratAI generated <strong>{{ $('Calculate Monthly Metrics').item.json.total_reports }} strategic analyses</strong> across <strong>{{ $('Calculate Monthly Metrics').item.json.unique_users }} active users</strong>, maintaining an average confidence score of <strong>{{ $('Calculate Monthly Metrics').item.json.avg_confidence }}%</strong>.</p>\n        <p><strong>{{ $('Calculate Monthly Metrics').item.json.high_confidence_count }}</strong> reports achieved high confidence (≥75%), while <strong>{{ $('Calculate Monthly Metrics').item.json.low_confidence_count }}</strong> triggered low confidence alerts (<60%).</p>\n      </div>\n      \n      <div class=\"section\">\n        <h2>Top Companies by Usage</h2>\n        <ul class=\"company-list\">\n          {{ $('Calculate Monthly Metrics').item.json.top_companies.map((c, i) => \n            `<li class=\"company-item\"><strong>${i+1}. ${c.name}</strong> - ${c.count} reports (${c.avgConfidence}% avg confidence)</li>`\n          ).join('') }}\n        </ul>\n      </div>\n      \n      <div class=\"section\">\n        <h2>User Satisfaction</h2>\n        <p><strong>Average Rating:</strong> {{ $('Calculate Monthly Metrics').item.json.avg_rating }}/5 ⭐</p>\n        <p><strong>Would Recommend:</strong> {{ $('Calculate Monthly Metrics').item.json.recommend_rate }}%</p>\n        <p><strong>Feedback Responses:</strong> {{ $('Calculate Monthly Metrics').item.json.total_feedback }}</p>\n      </div>\n      \n      <div class=\"section\">\n        <h2>Market Intelligence Trends</h2>\n        <p>Average signals across all analyses this month:</p>\n        <ul>\n          <li><strong>AI Chip Demand:</strong> {{ $('Calculate Monthly Metrics').item.json.signal_trends.ai_chip }}%</li>\n          <li><strong>Supply Chain Risk:</strong> {{ $('Calculate Monthly Metrics').item.json.signal_trends.supply_risk }}%</li>\n        </ul>\n      </div>\n    </div>\n    \n    <div class=\"cta\">\n      <a href=\"{{ $('Create Google Doc Summary').item.json.documentUrl }}\" class=\"cta-button\">📄 View Full Executive Summary</a>\n    </div>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "email-executive-summary",
+      "name": "Email to Leadership",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1250, 375],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5",
+          "name": "Gmail OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule - 1st of Month 9am": {
+      "main": [[
+        {"node": "Get Last 30 Days Reports", "type": "main", "index": 0},
+        {"node": "Get Last 30 Days Feedback", "type": "main", "index": 0}
+      ]]
+    },
+    "Get Last 30 Days Reports": {
+      "main": [[{"node": "Calculate Monthly Metrics", "type": "main", "index": 0}]]
+    },
+    "Get Last 30 Days Feedback": {
+      "main": [[{"node": "Calculate Monthly Metrics", "type": "main", "index": 0}]]
+    },
+    "Calculate Monthly Metrics": {
+      "main": [[{"node": "Generate Executive Summary with GPT-4", "type": "main", "index": 0}]]
+    },
+    "Generate Executive Summary with GPT-4": {
+      "main": [[{"node": "Create Google Doc Summary", "type": "main", "index": 0}]]
+    },
+    "Create Google Doc Summary": {
+      "main": [[{"node": "Email to Leadership", "type": "main", "index": 0}]]
+    }
+  }
+}
