@@ -1,0 +1,82 @@
+{
+  "name": "StratAI - Feedback Collection",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stratai-feedback",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-feedback",
+      "name": "Webhook - Feedback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const feedback = $input.first().json.body || $input.first().json;\n\nreturn {\n  json: {\n    report_id: feedback.report_id || '',\n    rating: parseInt(feedback.rating) || 0,\n    feedback_text: feedback.feedback_text || '',\n    useful: feedback.useful === 'true' || feedback.useful === true,\n    would_recommend: feedback.would_recommend === 'true' || feedback.would_recommend === true,\n    user_email: feedback.user_email || '',\n    timestamp: new Date().toISOString(),\n    feedback_id: 'FB-' + Date.now()\n  }\n};"
+      },
+      "id": "extract-feedback",
+      "name": "Extract Feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Feedback",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedback_id": "={{ $json.feedback_id }}",
+            "report_id": "={{ $json.report_id }}",
+            "rating": "={{ $json.rating }}",
+            "feedback_text": "={{ $json.feedback_text }}",
+            "useful": "={{ $json.useful }}",
+            "would_recommend": "={{ $json.would_recommend }}",
+            "user_email": "={{ $json.user_email }}",
+            "timestamp": "={{ $json.timestamp }}"
+          }
+        }
+      },
+      "id": "save-feedback",
+      "name": "Save Feedback to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"feedback_id\": $json.feedback_id,\n  \"message\": \"Thank you for your feedback!\"\n} }}"
+      },
+      "id": "respond-feedback",
+      "name": "Respond Feedback",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Feedback": {
+      "main": [[{"node": "Extract Feedback", "type": "main", "index": 0}]]
+    },
+    "Extract Feedback": {
+      "main": [[{"node": "Save Feedback to Airtable", "type": "main", "index": 0}]]
+    },
+    "Save Feedback to Airtable": {
+      "main": [[{"node": "Respond Feedback", "type": "main", "index": 0}]]
+    }
+  }
+}
