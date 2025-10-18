@@ -1,0 +1,89 @@
+{
+  "name": "StratAI - Scheduled Weekly Reports",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "schedule-monday-9am",
+      "name": "Schedule - Every Monday 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Reports",
+          "mode": "list"
+        },
+        "options": {
+          "filterByFormula": "=IS_AFTER({timestamp}, DATEADD(TODAY(), -7, 'days'))"
+        }
+      },
+      "id": "get-weekly-reports",
+      "name": "Get Last 7 Days Reports",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reports = $input.all();\n\nif (reports.length === 0) {\n  return {\n    json: {\n      no_reports: true,\n      message: 'No reports generated this week'\n    }\n  };\n}\n\n// Group by user email\nconst userReports = {};\nreports.forEach(r => {\n  const email = r.json.fields.user_email;\n  if (!userReports[email]) {\n    userReports[email] = [];\n  }\n  userReports[email].push(r.json.fields);\n});\n\n// Create digest for each user\nconst digests = [];\nfor (const [email, userReportList] of Object.entries(userReports)) {\n  const avgConfidence = userReportList.reduce((sum, r) => sum + parseFloat(r.confidence_score || 0), 0) / userReportList.length;\n  \n  digests.push({\n    user_email: email,\n    report_count: userReportList.length,\n    avg_confidence: avgConfidence.toFixed(2),\n    reports: userReportList.map(r => ({\n      report_id: r.report_id,\n      company: r.company_name,\n      confidence: r.confidence_score,\n      question: r.strategic_question.substring(0, 100) + '...'\n    })),\n    week_start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],\n    week_end: new Date().toISOString().split('T')[0]\n  });\n}\n\nreturn digests.map(d => ({ json: d }));"
+      },
+      "id": "aggregate-weekly-data",
+      "name": "Aggregate Weekly Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@stratai.com",
+        "toEmail": "={{ $json.user_email }}",
+        "subject": "=📊 Your Weekly StratAI Intelligence Digest",
+        "emailType": "html",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 650px; margin: 20px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }\n    .header h1 { margin: 0 0 10px 0; font-size: 28px; }\n    .header p { margin: 0; opacity: 0.9; font-size: 14px; }\n    .stats { display: flex; justify-content: space-around; padding: 30px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }\n    .stat { text-align: center; }\n    .stat-value { font-size: 32px; font-weight: bold; color: #667eea; margin: 0; }\n    .stat-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 5px 0 0 0; }\n    .content { padding: 30px; }\n    .report-card { background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin: 15px 0; transition: all 0.3s; }\n    .report-card:hover { box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15); border-color: #667eea; }\n    .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }\n    .report-title { font-size: 16px; font-weight: 600; color: #2c3e50; margin: 0; }\n    .confidence-badge { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }\n    .report-question { color: #666; font-size: 14px; line-height: 1.5; margin: 10px 0; }\n    .report-meta { font-size: 12px; color: #999; margin-top: 10px; }\n    .insights { background: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; border-radius: 4px; }\n    .insights h3 { margin: 0 0 10px 0; color: #2c3e50; font-size: 16px; }\n    .cta { text-align: center; padding: 30px; background: #f8f9fa; }\n    .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 30px; font-weight: bold; transition: all 0.3s; }\n    .cta-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); }\n    .footer { text-align: center; padding: 30px; color: #999; font-size: 12px; background: #2c3e50; color: white; }\n    .footer a { color: #667eea; text-decoration: none; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📊 Weekly Intelligence Digest</h1>\n      <p>{{ $json.week_start }} to {{ $json.week_end }}</p>\n    </div>\n    \n    <div class=\"stats\">\n      <div class=\"stat\">\n        <p class=\"stat-value\">{{ $json.report_count }}</p>\n        <p class=\"stat-label\">Reports Generated</p>\n      </div>\n      <div class=\"stat\">\n        <p class=\"stat-value\">{{ $json.avg_confidence }}%</p>\n        <p class=\"stat-label\">Avg Confidence</p>\n      </div>\n    </div>\n    \n    <div class=\"content\">\n      <h2 style=\"color: #2c3e50; margin-top: 0;\">Your Strategic Analyses This Week</h2>\n      \n      {{ $json.reports.map(report => `\n        <div class=\"report-card\">\n          <div class=\"report-header\">\n            <h3 class=\"report-title\">${report.company}</h3>\n            <span class=\"confidence-badge\">${report.confidence}% Confidence</span>\n          </div>\n          <p class=\"report-question\">${report.question}</p>\n          <p class=\"report-meta\">Report ID: ${report.report_id}</p>\n        </div>\n      `).join('') }}\n      \n      <div class=\"insights\">\n        <h3>💡 This Week's Insights</h3>\n        <p>Your analyses this week show strong strategic clarity with an average confidence score of <strong>{{ $json.avg_confidence }}%</strong>. This indicates our AI agents are finding strong cross-validation in the market data supporting your decisions.</p>\n      </div>\n      \n      <div class=\"insights\">\n        <h3>🎯 Recommended Actions</h3>\n        <ul style=\"margin: 10px 0; padding-left: 20px;\">\n          <li>Review high-confidence recommendations (>75%) for immediate implementation</li>\n          <li>Use the AI Chat Assistant to dive deeper into specific analyses</li>\n          <li>Share reports with your leadership team for alignment</li>\n        </ul>\n      </div>\n    </div>\n    \n    <div class=\"cta\">\n      <a href=\"https://stratai.com/dashboard\" class=\"cta-button\">View All Reports →</a>\n    </div>\n    \n    <div class=\"footer\">\n      <p><strong>StratAI</strong> - Multi-Agent Strategic Intelligence Platform</p>\n      <p>Questions? Email us at <a href=\"mailto:support@stratai.com\">support@stratai.com</a></p>\n      <p style=\"margin-top: 20px; font-size: 10px;\">You're receiving this because you generated strategic analyses with StratAI.<br>\n      <a href=\"#\" style=\"color: #999;\">Unsubscribe</a> | <a href=\"#\" style=\"color: #999;\">Manage Preferences</a></p>\n    </div>\n  </div>\n</body>\n</html>"
+      },
+      "id": "send-weekly-digest-email",
+      "name": "Send Weekly Digest Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [850, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5",
+          "name": "Gmail OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule - Every Monday 9am": {
+      "main": [[{"node": "Get Last 7 Days Reports", "type": "main", "index": 0}]]
+    },
+    "Get Last 7 Days Reports": {
+      "main": [[{"node": "Aggregate Weekly Data", "type": "main", "index": 0}]]
+    },
+    "Aggregate Weekly Data": {
+      "main": [[{"node": "Send Weekly Digest Email", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
