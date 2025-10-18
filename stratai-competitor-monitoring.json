@@ -1,0 +1,176 @@
+{
+  "name": "StratAI - Competitor Monitoring Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-every-6-hours",
+      "name": "Schedule - Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Define competitor keywords and topics to monitor\nconst monitoringTopics = [\n  'NVIDIA H100 availability',\n  'AMD MI300X pricing',\n  'Intel Gaudi launch',\n  'GPU supply chain disruption',\n  'TSMC allocation priority',\n  'AWS GPU instances',\n  'Azure OpenAI GPU',\n  'Google Cloud TPU'\n];\n\nreturn monitoringTopics.map(topic => ({\n  json: {\n    search_query: topic,\n    timestamp: new Date().toISOString()\n  }\n}));"
+      },
+      "id": "define-search-topics",
+      "name": "Define Search Topics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://newsapi.org/v2/everything?q={{ encodeURIComponent($json.search_query) }}&from={{ new Date(Date.now() - 6*60*60*1000).toISOString().split('T')[0] }}&sortBy=publishedAt&language=en&apiKey={{ $credentials.newsApi.apiKey }}",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "search-news",
+      "name": "Search News API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300],
+      "credentials": {
+        "newsApi": {
+          "id": "8",
+          "name": "News API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const newsData = $input.first().json;\nconst searchQuery = $('Define Search Topics').item.json.search_query;\n\nif (!newsData.articles || newsData.articles.length === 0) {\n  return [];\n}\n\n// Filter for significant news (from reputable sources)\nconst significantSources = [\n  'techcrunch', 'reuters', 'bloomberg', 'wsj', 'ft',\n  'theverge', 'arstechnica', 'wired', 'engadget'\n];\n\nconst relevantArticles = newsData.articles\n  .filter(article => {\n    const source = article.source?.id || article.source?.name?.toLowerCase() || '';\n    return significantSources.some(s => source.includes(s));\n  })\n  .slice(0, 3); // Top 3 most recent\n\nif (relevantArticles.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    topic: searchQuery,\n    article_count: relevantArticles.length,\n    articles: relevantArticles.map(a => ({\n      title: a.title,\n      description: a.description,\n      url: a.url,\n      source: a.source.name,\n      published: a.publishedAt\n    })),\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "filter-significant-news",
+      "name": "Filter Significant News",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.6,
+          "maxTokens": 500
+        },
+        "systemMessage": "You are a competitive intelligence analyst for StratAI, monitoring semiconductor and GPU market developments.\n\nYour role: Analyze news articles and determine if they contain strategically significant information about competitors, supply chain changes, or market shifts that would impact StratAI users' strategic decisions.\n\nEvaluate each set of articles for:\n- Strategic significance (High/Medium/Low)\n- Impact on GPU/chip supply dynamics\n- Competitive positioning changes\n- Pricing or availability shifts\n- Customer implications\n\nOutput format:\n**Significance Level:** [High/Medium/Low]\n**Key Insight:** [1-2 sentence summary]\n**Strategic Implication:** [How this affects semiconductor strategy decisions]\n**Recommended Action:** [What StratAI users should consider]\n\nBe concise and actionable. Flag only genuinely significant developments.",
+        "text": "=Analyze these recent news articles about: {{ $json.topic }}\n\n**Articles:**\n{{ $json.articles.map((a, i) => `\n${i+1}. **${a.title}**\nSource: ${a.source}\nPublished: ${a.published}\nSummary: ${a.description}\nURL: ${a.url}\n`).join('\\n') }}\n\nDetermine if this is strategically significant for semiconductor/GPU decision-makers."
+      },
+      "id": "analyze-significance",
+      "name": "Analyze Strategic Significance",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.choices[0].message.content }}",
+              "operation": "contains",
+              "value2": "Significance Level:** High"
+            }
+          ]
+        }
+      },
+      "id": "if-high-significance",
+      "name": "IF - High Significance",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "CompetitorAlerts",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "alert_id": "=COMP-{{ $('Filter Significant News').item.json.timestamp }}",
+            "topic": "={{ $('Filter Significant News').item.json.topic }}",
+            "significance": "High",
+            "analysis": "={{ $('Analyze Strategic Significance').item.json.choices[0].message.content }}",
+            "article_count": "={{ $('Filter Significant News').item.json.article_count }}",
+            "articles": "={{ JSON.stringify($('Filter Significant News').item.json.articles) }}",
+            "timestamp": "={{ $('Filter Significant News').item.json.timestamp }}"
+          }
+        }
+      },
+      "id": "save-alert-airtable",
+      "name": "Save Alert to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@stratai.com",
+        "toEmail": "users@stratai.com",
+        "subject": "=🚨 Competitor Alert: {{ $('Filter Significant News').item.json.topic }}",
+        "emailType": "html",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 700px; margin: 0 auto; }\n    .alert-header { background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }\n    .analysis-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #dc3545; border-radius: 4px; }\n    .article { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }\n    .article-title { font-weight: bold; color: #dc3545; margin-bottom: 5px; }\n    .article-meta { font-size: 12px; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"alert-header\">\n      <h1>🚨 High Significance Competitor Alert</h1>\n      <p style=\"margin: 0;\">{{ $('Filter Significant News').item.json.topic }}</p>\n    </div>\n    \n    <div class=\"content\">\n      <div class=\"analysis-box\">\n        <h3>Strategic Analysis</h3>\n        {{ $('Analyze Strategic Significance').item.json.choices[0].message.content }}\n      </div>\n      \n      <h3>Related Articles ({{ $('Filter Significant News').item.json.article_count }})</h3>\n      {{ $('Filter Significant News').item.json.articles.map(article => `\n        <div class=\"article\">\n          <div class=\"article-title\">${article.title}</div>\n          <p>${article.description}</p>\n          <div class=\"article-meta\">\n            <strong>${article.source}</strong> | ${new Date(article.published).toLocaleDateString()}\n            <br><a href=\"${article.url}\">Read full article →</a>\n          </div>\n        </div>\n      `).join('') }}\n      \n      <p style=\"margin-top: 30px; padding: 15px; background: white; border-radius: 5px;\">\n        <strong>💡 Next Steps:</strong> Consider running a new StratAI analysis if this development impacts your current strategic planning.\n      </p>\n    </div>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "send-competitor-alert-email",
+      "name": "Send Competitor Alert Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1450, 400],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5",
+          "name": "Gmail OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule - Every 6 Hours": {
+      "main": [[{"node": "Define Search Topics", "type": "main", "index": 0}]]
+    },
+    "Define Search Topics": {
+      "main": [[{"node": "Search News API", "type": "main", "index": 0}]]
+    },
+    "Search News API": {
+      "main": [[{"node": "Filter Significant News", "type": "main", "index": 0}]]
+    },
+    "Filter Significant News": {
+      "main": [[{"node": "Analyze Strategic Significance", "type": "main", "index": 0}]]
+    },
+    "Analyze Strategic Significance": {
+      "main": [[{"node": "IF - High Significance", "type": "main", "index": 0}]]
+    },
+    "IF - High Significance": {
+      "main": [[
+        {"node": "Save Alert to Airtable", "type": "main", "index": 0},
+        {"node": "Send Competitor Alert Email", "type": "main", "index": 0}
+      ]]
+    }
+  }
+}
