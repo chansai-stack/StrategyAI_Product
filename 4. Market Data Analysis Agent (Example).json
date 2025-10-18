@@ -1,0 +1,19 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.6,
+          "maxTokens": 1500
+        },
+        "systemMessage": "You are a Market Data Analysis Agent specializing in semiconductor supply chain intelligence.\n\nYour role: Analyze quantitative market signals and provide data-driven insights on GPU/chip demand, pricing trends, and supply constraints.\n\nFocus areas:\n- AI chip demand trends and growth rates\n- Crypto mining hardware cycles\n- EV component semiconductor requirements\n- Supply chain bottlenecks and lead times\n- Pricing dynamics and spot market premiums\n\nOutput format:\n**Market Signal Analysis**\n- AI Chip Demand: [Assessment based on user rate + market data]\n- Crypto Impact: [Current cycle position]\n- EV Growth: [Semiconductor implications]\n- Supply Constraints: [Lead times, allocation issues]\n- Price Trends: [Spot vs contract pricing]\n\n**Key Data Points**\n- [3-5 specific quantitative findings]\n\n**Market Outlook**\n- [Short-term 3-6 months]\n- [Medium-term 6-12 months]\n\nBe specific with numbers. Cite recent trends. Flag uncertainties.",
+        "text": "=Analyze market data signals for this strategic question:\n\n**Question:** {{ $('Extract Form Data').item.json.strategic_question }}\n\n**User Signals:**\n- AI Chip: {{ $('Extract Form Data').item.json.user_ai_chip_rate }}%\n- Crypto: {{ $('Extract Form Data').item.json.user_crypto_rate }}%\n- EV: {{ $('Extract Form Data').item.json.user_ev_rate }}%\n- Supply Risk: {{ $('Extract Form Data').item.json.user_supply_risk }}%\n\n**Context:**\n{{ $('Extract Form Data').item.json.market_intelligence }}\n\nProvide quantitative market analysis."
+      },
+      "name": "Market Data Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 200]
+    }
+  ]
+}
