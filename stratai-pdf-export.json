@@ -1,0 +1,102 @@
+{
+  "name": "StratAI - PDF Export",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stratai-export-pdf",
+        "responseMode": "lastNode"
+      },
+      "id": "webhook-pdf-export",
+      "name": "Webhook - PDF Export",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body || $input.first().json;\n\nreturn {\n  json: {\n    report_id: data.report_id || '',\n    google_doc_id: data.google_doc_id || '',\n    user_email: data.user_email || '',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "extract-export-data",
+      "name": "Extract Export Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.google_doc_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "pdf"
+            }
+          }
+        }
+      },
+      "id": "download-as-pdf",
+      "name": "Download Google Doc as PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [650, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7",
+          "name": "Google Drive OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@stratai.com",
+        "toEmail": "={{ $('Extract Export Data').item.json.user_email }}",
+        "subject": "=Your StratAI Report PDF - {{ $('Extract Export Data').item.json.report_id }}",
+        "emailType": "html",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif;\">\n  <h2>Your StratAI Report PDF is Ready</h2>\n  <p>Please find your strategic analysis report attached as a PDF.</p>\n  <p><strong>Report ID:</strong> {{ $('Extract Export Data').item.json.report_id }}</p>\n  <p>Generated on {{ $('Extract Export Data').item.json.timestamp }}</p>\n  <p>Best regards,<br>The StratAI Team</p>\n</body>\n</html>",
+        "attachments": "={{ $json.binary }}",
+        "options": {}
+      },
+      "id": "email-pdf",
+      "name": "Email PDF to User",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [850, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"pdf_sent\": true, \"report_id\": $('Extract Export Data').item.json.report_id } }}"
+      },
+      "id": "respond-pdf-sent",
+      "name": "Respond PDF Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - PDF Export": {
+      "main": [[{"node": "Extract Export Data", "type": "main", "index": 0}]]
+    },
+    "Extract Export Data": {
+      "main": [[{"node": "Download Google Doc as PDF", "type": "main", "index": 0}]]
+    },
+    "Download Google Doc as PDF": {
+      "main": [[{"node": "Email PDF to User", "type": "main", "index": 0}]]
+    },
+    "Email PDF to User": {
+      "main": [[{"node": "Respond PDF Sent", "type": "main", "index": 0}]]
+    }
+  }
+}
