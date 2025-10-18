@@ -1,0 +1,128 @@
+{
+  "name": "StratAI - Low Confidence Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stratai-confidence-check",
+        "responseMode": "lastNode"
+      },
+      "id": "webhook-confidence-check",
+      "name": "Webhook - Confidence Check",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body || $input.first().json;\n\nreturn {\n  json: {\n    report_id: data.report_id || '',\n    confidence_score: parseFloat(data.confidence_score) || 0,\n    user_email: data.user_email || '',\n    company_name: data.company_name || '',\n    strategic_question: data.strategic_question || '',\n    limitations: data.limitations || '',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "extract-confidence-data",
+      "name": "Extract Confidence Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.confidence_score }}",
+              "operation": "smaller",
+              "value2": 60
+            }
+          ]
+        }
+      },
+      "id": "if-low-confidence",
+      "name": "IF - Low Confidence (<60%)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@stratai.com",
+        "toEmail": "={{ $json.user_email }}",
+        "subject": "=⚠️ Low Confidence Alert - Strategic Analysis Review Recommended",
+        "emailType": "html",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .alert-header { background: #ffc107; color: #000; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #fff3cd; padding: 30px; border: 2px solid #ffc107; border-radius: 0 0 10px 10px; }\n    .warning-box { background: white; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }\n    .confidence-score { font-size: 48px; font-weight: bold; color: #ff6b6b; text-align: center; margin: 20px 0; }\n    .recommendations { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; }\n    .recommendation-item { padding: 10px 0; border-bottom: 1px solid #eee; }\n    .recommendation-item:last-child { border-bottom: none; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"alert-header\">\n      <h1>⚠️ Low Confidence Score Detected</h1>\n      <p style=\"margin: 0;\">Your strategic analysis may require additional validation</p>\n    </div>\n    \n    <div class=\"content\">\n      <div class=\"confidence-score\">{{ $json.confidence_score }}%</div>\n      \n      <div class=\"warning-box\">\n        <p><strong>Report ID:</strong> {{ $json.report_id }}</p>\n        <p><strong>Company:</strong> {{ $json.company_name }}</p>\n        <p><strong>Question:</strong> {{ $json.strategic_question }}</p>\n      </div>\n      \n      <h3>Why is the confidence score low?</h3>\n      <p>A confidence score below 60% typically indicates one or more of the following:</p>\n      <ul>\n        <li>Major conflicts between different agent analyses</li>\n        <li>Missing critical data for comprehensive assessment</li>\n        <li>High uncertainty in market signals or competitive landscape</li>\n        <li>Limited historical precedent for the strategic scenario</li>\n      </ul>\n      \n      <div class=\"warning-box\">\n        <h4>Identified Limitations:</h4>\n        <p>{{ $json.limitations || 'See full report for details' }}</p>\n      </div>\n      \n      <div class=\"recommendations\">\n        <h3>Recommended Actions:</h3>\n        \n        <div class=\"recommendation-item\">\n          <strong>1. Review Agent Discrepancies</strong>\n          <p>Check the Cross-Validation Table in your report to identify where agents disagree and why.</p>\n        </div>\n        \n        <div class=\"recommendation-item\">\n          <strong>2. Gather Additional Data</strong>\n          <p>Review the \"Data Gaps\" section and consider collecting more information before making decisions.</p>\n        </div>\n        \n        <div class=\"recommendation-item\">\n          <strong>3. Use AI Chat for Clarification</strong>\n          <p>Ask follow-up questions to understand the sources of uncertainty in the analysis.</p>\n        </div>\n        \n        <div class=\"recommendation-item\">\n          <strong>4. Consider Scenario Planning</strong>\n          <p>Given the uncertainty, develop contingency plans for different outcomes.</p>\n        </div>\n        \n        <div class=\"recommendation-item\">\n          <strong>5. Consult Subject Matter Experts</strong>\n          <p>For low-confidence strategic decisions, human expert validation is recommended.</p>\n        </div>\n      </div>\n      \n      <p style=\"background: white; padding: 15px; border-radius: 5px; margin-top: 20px;\">\n        <strong>💡 Remember:</strong> Low confidence doesn't mean the analysis is wrong—it means there's significant uncertainty that should be acknowledged in your decision-making process.\n      </p>\n    </div>\n  </div>\n</body>\n</html>"
+      },
+      "id": "send-low-confidence-alert",
+      "name": "Send Low Confidence Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [850, 200],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Alerts",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "alert_id": "=ALERT-{{ $json.timestamp }}",
+            "report_id": "={{ $json.report_id }}",
+            "alert_type": "low_confidence",
+            "confidence_score": "={{ $json.confidence_score }}",
+            "user_email": "={{ $json.user_email }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "action_taken": "email_sent"
+          }
+        }
+      },
+      "id": "log-alert-airtable",
+      "name": "Log Alert to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"alert_sent\": true, \"confidence_score\": $json.confidence_score } }}"
+      },
+      "id": "respond-alert",
+      "name": "Respond Alert Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Confidence Check": {
+      "main": [[{"node": "Extract Confidence Data", "type": "main", "index": 0}]]
+    },
+    "Extract Confidence Data": {
+      "main": [[{"node": "IF - Low Confidence (<60%)", "type": "main", "index": 0}]]
+    },
+    "IF - Low Confidence (<60%)": {
+      "main": [[
+        {"node": "Send Low Confidence Alert", "type": "main", "index": 0},
+        {"node": "Log Alert to Airtable", "type": "main", "index": 0}
+      ]]
+    },
+    "Send Low Confidence Alert": {
+      "main": [[{"node": "Respond Alert Status", "type": "main", "index": 0}]]
+    },
+    "Log Alert to Airtable": {
+      "main": [[{"node": "Respond Alert Status", "type": "main", "index": 0}]]
+    }
+  }
+}
