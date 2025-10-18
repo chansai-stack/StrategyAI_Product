@@ -1,0 +1,13 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Extract form data from webhook payload\nconst formData = $input.first().json.body || $input.first().json;\n\nreturn {\n  json: {\n    user_email: formData.user_email || '',\n    company_name: formData.company_name || '',\n    job_function: formData.job_function || '',\n    strategic_question: formData.strategic_question || '',\n    market_intelligence: formData.market_intelligence || '',\n    strategic_context: formData.strategic_context || '',\n    risk_factors: formData.risk_factors || '',\n    competitive_landscape: formData.competitive_landscape || '',\n    organizational_insights: formData.organizational_insights || '',\n    user_ai_chip_rate: parseInt(formData.user_ai_chip_rate) || 50,\n    user_crypto_rate: parseInt(formData.user_crypto_rate) || 50,\n    user_ev_rate: parseInt(formData.user_ev_rate) || 50,\n    user_supply_risk: parseInt(formData.user_supply_risk) || 50,\n    user_regulatory: parseInt(formData.user_regulatory) || 50,\n    user_consumer_rate: parseInt(formData.user_consumer_rate) || 50,\n    pdf_file: formData.pdf_file || null,\n    pdf_processed: formData.pdf_file ? true : false,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Extract Form Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [250, 300]
+    }
+  ]
+}
