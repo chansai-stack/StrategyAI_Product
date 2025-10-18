@@ -1,0 +1,172 @@
+{
+  "name": "StratAI - Main Strategic Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stratai-submit",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-1",
+      "name": "Webhook - Form Submit",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "stratai-main-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract form data from webhook payload\nconst formData = $input.first().json.body || $input.first().json;\n\nreturn {\n  json: {\n    user_email: formData.user_email || '',\n    company_name: formData.company_name || '',\n    job_function: formData.job_function || '',\n    strategic_question: formData.strategic_question || '',\n    market_intelligence: formData.market_intelligence || '',\n    strategic_context: formData.strategic_context || '',\n    risk_factors: formData.risk_factors || '',\n    competitive_landscape: formData.competitive_landscape || '',\n    organizational_insights: formData.organizational_insights || '',\n    user_ai_chip_rate: parseInt(formData.user_ai_chip_rate) || 50,\n    user_crypto_rate: parseInt(formData.user_crypto_rate) || 50,\n    user_ev_rate: parseInt(formData.user_ev_rate) || 50,\n    user_supply_risk: parseInt(formData.user_supply_risk) || 50,\n    user_regulatory: parseInt(formData.user_regulatory) || 50,\n    user_consumer_rate: parseInt(formData.user_consumer_rate) || 50,\n    pdf_file: formData.pdf_file || null,\n    pdf_processed: formData.pdf_file ? true : false,\n    timestamp: new Date().toISOString(),\n    session_id: 'SESSION-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)\n  }\n};"
+      },
+      "id": "code-extract-form",
+      "name": "Extract Form Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.pdf_processed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-pdf-exists",
+      "name": "IF - PDF Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// PDF Processing Logic\nconst pdfData = $json.pdf_file;\n\nif (!pdfData) {\n  return { json: { pdf_text: '' } };\n}\n\n// Base64 decode if needed\nlet pdfBuffer;\nif (typeof pdfData === 'string') {\n  pdfBuffer = Buffer.from(pdfData, 'base64');\n} else {\n  pdfBuffer = pdfData;\n}\n\n// Extract text from PDF using pdf-parse\nimport pdfParse from 'pdf-parse';\n\ntry {\n  const data = await pdfParse(pdfBuffer);\n  \n  return {\n    json: {\n      pdf_text: data.text,\n      pdf_pages: data.numpages,\n      pdf_metadata: data.info,\n      pdf_processed_at: new Date().toISOString()\n    }\n  };\n} catch (error) {\n  console.error('PDF parsing error:', error);\n  return {\n    json: {\n      pdf_text: '',\n      pdf_error: error.message\n    }\n  };\n}"
+      },
+      "id": "code-pdf-parser",
+      "name": "PDF Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "session_id",
+              "field2": "session_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "merge-pdf-data",
+      "name": "Merge PDF Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.6,
+          "maxTokens": 1500
+        },
+        "systemMessage": "You are a Market Data Analysis Agent specializing in semiconductor supply chain intelligence.\n\nYour role: Analyze quantitative market signals and provide data-driven insights on GPU/chip demand, pricing trends, and supply constraints.\n\nFocus areas:\n- AI chip demand trends and growth rates (H100, MI300X, Gaudi demand)\n- Crypto mining hardware cycles and GPU utilization\n- EV component semiconductor requirements\n- Supply chain bottlenecks, lead times, allocation issues\n- Pricing dynamics: spot market vs contract pricing\n- NVIDIA, AMD, Intel competitive positioning on supply\n\nOutput format:\n**Market Signal Analysis**\n- AI Chip Demand: [Assessment based on user rate + current market data]\n- Crypto Impact: [Current cycle position and GPU demand]\n- EV Growth: [Semiconductor implications for automotive]\n- Supply Constraints: [Lead times, allocation bottlenecks]\n- Price Trends: [Spot vs contract, premium analysis]\n\n**Key Data Points**\n- [3-5 specific quantitative findings with numbers]\n\n**Market Outlook**\n- Short-term (3-6 months): [Specific predictions]\n- Medium-term (6-12 months): [Trend analysis]\n\n**Confidence Assessment**\n- Data quality: [High/Medium/Low]\n- Signal strength: [Clear/Mixed/Weak]\n\nBe specific with numbers. Cite recent trends. Flag uncertainties clearly.",
+        "text": "=Analyze market data signals for this strategic question:\n\n**Strategic Question:**\n{{ $json.strategic_question }}\n\n**User Market Signals:**\n- AI Chip Demand: {{ $json.user_ai_chip_rate }}%\n- Crypto Mining: {{ $json.user_crypto_rate }}%\n- EV Components: {{ $json.user_ev_rate }}%\n- Supply Chain Risk: {{ $json.user_supply_risk }}%\n- Regulatory Risk: {{ $json.user_regulatory }}%\n- Consumer Electronics: {{ $json.user_consumer_rate }}%\n\n**Market Intelligence Context:**\n{{ $json.market_intelligence }}\n\n{{ $json.pdf_text ? '**Internal Documents:**\\n' + $json.pdf_text : '' }}\n\nProvide quantitative market data analysis focused on semiconductor supply dynamics."
+      },
+      "id": "agent-market-data",
+      "name": "Market Data Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1350, 100],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1500
+        },
+        "systemMessage": "You are a Market Intelligence Agent specializing in semiconductor industry competitive dynamics.\n\nYour role: Analyze competitive landscape, customer behavior, and market positioning for GPU/chip suppliers.\n\nFocus areas:\n- NVIDIA vs AMD vs Intel competitive positioning\n- Customer allocation strategies (AWS, Azure, GCP priorities)\n- Emerging competitors and market entrants\n- Customer switching costs and CUDA lock-in dynamics\n- Partnership and acquisition trends\n- Channel partner and reseller dynamics\n\nOutput format:\n**Competitive Landscape**\n- Primary Players: [NVIDIA, AMD, Intel positioning]\n- Market Share Dynamics: [Recent shifts]\n- Customer Behavior: [Allocation preferences, switching patterns]\n\n**Strategic Intelligence**\n- Key Competitive Moves: [Recent announcements, partnerships]\n- Customer Sentiment: [Satisfaction, pain points]\n- Switching Barriers: [CUDA lock-in, migration costs]\n\n**Market Positioning**\n- Strengths: [Competitive advantages]\n- Weaknesses: [Vulnerabilities]\n- Opportunities: [Market gaps]\n\n**Intelligence Quality**\n- Source reliability: [High/Medium/Low]\n- Coverage gaps: [What's missing]\n\nProvide specific examples. Quote customer feedback when available. Highlight competitive threats.",
+        "text": "=Analyze competitive intelligence for this strategic question:\n\n**Strategic Question:**\n{{ $json.strategic_question }}\n\n**User Context:**\n- Company: {{ $json.company_name }}\n- Role: {{ $json.job_function }}\n\n**Competitive Landscape Context:**\n{{ $json.competitive_landscape }}\n\n**Market Intelligence:**\n{{ $json.market_intelligence }}\n\n{{ $json.pdf_text ? '**Internal Intelligence:**\\n' + $json.pdf_text : '' }}\n\nProvide competitive intelligence analysis focused on market positioning and customer dynamics."
+      },
+      "id": "agent-market-intel",
+      "name": "Market Intelligence Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1350, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.75,
+          "maxTokens": 1500
+        },
+        "systemMessage": "You are a Strategic Analysis Agent specializing in long-term semiconductor strategy and scenario planning.\n\nYour role: Evaluate strategic options, model scenarios, and provide forward-looking analysis.\n\nFocus areas:\n- Strategic option evaluation (buy/build/partner decisions)\n- Scenario planning (best case, base case, worst case)\n- Long-term market trajectory (12-24 months)\n- Technology transition risks (node transitions, architecture shifts)\n- Organizational capability assessment\n- Strategic trade-offs and opportunity costs\n\nOutput format:\n**Strategic Options Analysis**\n- Option 1: [Description, pros, cons, timeline]\n- Option 2: [Description, pros, cons, timeline]\n- Option 3: [Description, pros, cons, timeline]\n\n**Scenario Planning**\n- Best Case: [Assumptions, outcomes, probability]\n- Base Case: [Assumptions, outcomes, probability]\n- Worst Case: [Assumptions, outcomes, probability]\n\n**Long-term Implications**\n- Technology trends: [3nm, chiplets, packaging innovations]\n- Market evolution: [Demand patterns, supplier landscape]\n- Capability gaps: [What needs to be built/acquired]\n\n**Strategic Recommendations**\n- Primary recommendation: [Preferred option with rationale]\n- Alternative paths: [Backup strategies]\n- Key decision points: [Go/no-go criteria]\n\n**Analysis Quality**\n- Assumption clarity: [Explicit assumptions listed]\n- Uncertainty flags: [What could change the analysis]\n\nThink long-term. Model multiple scenarios. Be explicit about assumptions.",
+        "text": "=Provide strategic analysis for this question:\n\n**Strategic Question:**\n{{ $json.strategic_question }}\n\n**Strategic Context:**\n{{ $json.strategic_context }}\n\n**Organizational Context:**\n{{ $json.organizational_insights }}\n\n**Market Signals:**\n- AI Chip: {{ $json.user_ai_chip_rate }}%\n- Supply Risk: {{ $json.user_supply_risk }}%\n\n{{ $json.pdf_text ? '**Strategic Documents:**\\n' + $json.pdf_text : '' }}\n\nProvide strategic analysis with scenario planning and long-term implications."
+      },
+      "id": "agent-strategic",
+      "name": "Strategic Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1350, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.65,
+          "maxTokens": 1500
+        },
+        "systemMessage": "You are a Risk Management Agent specializing in semiconductor supply chain and operational risk.\n\nYour role: Identify, assess, and quantify risks across supply chain, geopolitical, technology, and execution dimensions.\n\nFocus areas:\n- Supply chain vulnerabilities (single-source dependencies, lead time risks)\n- Geopolitical risks (Taiwan conflict, export controls, sanctions)\n- Technology risks (yield issues, architecture transitions, obsolescence)\n- Execution risks (team capability, timeline delays, budget overruns)\n- Financial risks (cost overruns, revenue impact, ROI uncertainty)\n- Reputational risks (customer satisfaction, brand damage)\n\nOutput format:\n**Risk Assessment Matrix**\n- Critical Risks (High Impact + High Probability): [List with mitigation]\n- Major Risks (High Impact + Medium Probability): [List with mitigation]\n- Moderate Risks (Medium Impact + Medium Probability): [List with monitoring]\n\n**Supply Chain Risk Analysis**\n- Single points of failure: [Dependencies identified]\n- Lead time vulnerabilities: [Timeline exposures]\n- Allocation risks: [Supplier priorities, capacity constraints]\n\n**Geopolitical Risk Assessment**\n- Taiwan exposure: [Impact scenarios]\n- Export control impact: [Regulatory constraints]\n- Sovereign supply considerations: [Domestic sourcing options]\n\n**Mitigation Strategies**\n- Immediate actions: [30-day risk reduction]\n- Medium-term initiatives: [90-day resilience building]\n- Contingency plans: [Backup options if risks materialize]\n\n**Risk Quantification**\n- Revenue at risk: [Dollar amount if risks occur]\n- Probability-weighted impact: [Expected value calculations]\n- Risk tolerance assessment: [Acceptable vs unacceptable risks]\n\n**Risk Quality**\n- Confidence in assessment: [High/Medium/Low]\n- Data gaps: [What's missing for better risk analysis]\n\nBe specific about risk likelihood and impact. Quantify where possible. Propose concrete mitigations.",
+        "text": "=Assess risks for this strategic question:\n\n**Strategic Question:**\n{{ $json.strategic_question }}\n\n**Risk Factors:**\n{{ $json.risk_factors }}\n\n**Supply Chain Context:**\n- Supply Risk Level: {{ $json.user_supply_risk }}%\n- Regulatory Risk: {{ $json.user_regulatory }}%\n\n**Strategic Context:**\n{{ $json.strategic_context }}\n\n{{ $json.pdf_text ? '**Risk Documentation:**\\n' + $json.pdf_text : '' }}\n\nProvide comprehensive risk assessment with quantified impacts and mitigation strategies."
+      },
+      "id": "agent-risk",
+      "name": "Risk Management Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1350, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1500
+        },
+        "systemMessage": "You are a Competitive Analysis Agent specializing in semiconductor industry competitive strategy.\n\nYour role: Analyze competitor strategies, market positioning, and competitive responses to inform strategic decisions.\n\nFocus areas:\n- Competitor capability assessment (NVIDIA, AMD, Intel, emerging players)\n- Competitive strategy patterns (pricing, partnerships, acquisitions)\n- Customer competitive dynamics (AWS vs Azure vs GCP allocation strategies)\n- Technology competitive positioning (CUDA vs ROCm, custom ASICs)\n- Market share trends and competitive threats\n- Competitive response scenarios (how will competitors react)\n\nOutput format:\n**Competitor Analysis**\n- NVIDIA: [Strategy, strengths, weaknesses, recent moves]\n- AMD: [Strategy, strengths, weaknesses, recent moves]\n- Intel: [Strategy, strengths, weaknesses, recent moves]\n- Emerging players: [Startups, regional competitors]\n\n**Competitive Positioning**\n- Market share dynamics: [Recent shifts, trends]\n- Differentiation strategies: [How competitors position]\n- Pricing strategies: [Spot market, contracts, bundling]\n\n**Competitive Threats**\n- Direct threats: [Competitors targeting same customers/use cases]\n- Indirect threats: [Substitutes, new entrants]\n- Strategic vulnerabilities: [Where competitors could attack]\n\n**Competitive Response Analysis**\n- If we choose Option A: [Expected competitor reactions]\n- If we choose Option B: [Expected competitor reactions]\n- Competitive countermoves: [How to defend position]\n\n**Competitive Intelligence Quality**\n- Source reliability: [Public vs insider information]\n- Intelligence gaps: [What we don't know about competitors]\n\n**Strategic Implications**\n- Competitive advantages to leverage: [Our strengths vs competitors]\n- Competitive disadvantages to mitigate: [Our weaknesses vs competitors]\n- Windows of opportunity: [Timing advantages before competitors respond]\n\nBe specific about competitor capabilities and strategies. Model competitive responses. Identify timing advantages.",
+        "text": "=Analyze competitive dynamics for this strategic question:\n\n**St
