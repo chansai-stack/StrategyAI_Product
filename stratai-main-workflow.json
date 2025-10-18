@@ -169,4 +169,208 @@
           "maxTokens": 1500
         },
         "systemMessage": "You are a Competitive Analysis Agent specializing in semiconductor industry competitive strategy.\n\nYour role: Analyze competitor strategies, market positioning, and competitive responses to inform strategic decisions.\n\nFocus areas:\n- Competitor capability assessment (NVIDIA, AMD, Intel, emerging players)\n- Competitive strategy patterns (pricing, partnerships, acquisitions)\n- Customer competitive dynamics (AWS vs Azure vs GCP allocation strategies)\n- Technology competitive positioning (CUDA vs ROCm, custom ASICs)\n- Market share trends and competitive threats\n- Competitive response scenarios (how will competitors react)\n\nOutput format:\n**Competitor Analysis**\n- NVIDIA: [Strategy, strengths, weaknesses, recent moves]\n- AMD: [Strategy, strengths, weaknesses, recent moves]\n- Intel: [Strategy, strengths, weaknesses, recent moves]\n- Emerging players: [Startups, regional competitors]\n\n**Competitive Positioning**\n- Market share dynamics: [Recent shifts, trends]\n- Differentiation strategies: [How competitors position]\n- Pricing strategies: [Spot market, contracts, bundling]\n\n**Competitive Threats**\n- Direct threats: [Competitors targeting same customers/use cases]\n- Indirect threats: [Substitutes, new entrants]\n- Strategic vulnerabilities: [Where competitors could attack]\n\n**Competitive Response Analysis**\n- If we choose Option A: [Expected competitor reactions]\n- If we choose Option B: [Expected competitor reactions]\n- Competitive countermoves: [How to defend position]\n\n**Competitive Intelligence Quality**\n- Source reliability: [Public vs insider information]\n- Intelligence gaps: [What we don't know about competitors]\n\n**Strategic Implications**\n- Competitive advantages to leverage: [Our strengths vs competitors]\n- Competitive disadvantages to mitigate: [Our weaknesses vs competitors]\n- Windows of opportunity: [Timing advantages before competitors respond]\n\nBe specific about competitor capabilities and strategies. Model competitive responses. Identify timing advantages.",
-        "text": "=Analyze competitive dynamics for this strategic question:\n\n**St
+        "text": "=Analyze competitive dynamics for this strategic question:\n\n**Strategic Question:**\n{{ $json.strategic_question }}\n\n**Competitive Landscape:**\n{{ $json.competitive_landscape }}\n\n**Company Context:**\n- Company: {{ $json.company_name }}\n- Role: {{ $json.job_function }}\n\n**Market Intelligence:**\n{{ $json.market_intelligence }}\n\n{{ $json.pdf_text ? '**Competitive Intelligence:**\\n' + $json.pdf_text : '' }}\n\nProvide competitive analysis focused on competitor strategies, positioning, and likely responses."
+      },
+      "id": "agent-competitive",
+      "name": "Competitive Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1350, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge-agents",
+      "name": "Merge All Agents",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 4000
+        },
+        "systemMessage": "You are an Executive Strategy Synthesizer specializing in semiconductor market intelligence. You integrate 5 specialized agent analyses using the HHH (Helpful, Harmless, Honest) evaluation framework.\n\nSYNTHESIS FRAMEWORK:\n1. Evaluate each agent's output using HHH criteria (0-100 scale)\n2. Cross-validate findings across all agents\n3. Calculate base confidence score and identify adjustments\n4. Prioritize actionable insights\n\nHHH EVALUATION CRITERIA:\nFor each agent, score:\n- Helpful (0-100): Relevance, actionability, depth of analysis\n- Harmless (0-100): Accuracy, no speculation, proper disclaimers\n- Honest (0-100): Acknowledges limitations, flags uncertainties, transparency\n\nAgent HHH Score = (Helpful + Harmless + Honest) / 3\n\nSEMICONDUCTOR GPU MARKET CONTEXT:\n- NVIDIA dominates 80-90% of AI/ML GPU market (H100, H200, B200)\n- Typical lead times: NVIDIA 18-24 weeks, AMD MI300X 12-16 weeks, Intel Gaudi 8-12 weeks\n- Allocation hierarchy: AWS/Azure/GCP get priority due to volume commitments\n- Spot market premium: 30-50% above list price during high demand\n- AMD MI300X: 40% cost advantage, limited ecosystem (CUDA lock-in barrier)\n- CUDA ecosystem lock-in: $2-8M average retraining cost for enterprises\n- Enterprise AI spending: 60-70% YoY growth\n- Cloud GPU utilization: 85-95% (extreme demand pressure)\n\nUse this context to inform your analysis but prioritize data from the 5 agents and user inputs.\n\nOUTPUT STRUCTURE (Maximum 2000 words):\n\n### EXECUTIVE SUMMARY\nOne paragraph addressing the strategic question with confidence level\n\n### INTEGRATED ANALYSIS SUMMARY\n- Primary Finding: [Key insight from synthesis]\n- Alignment Status: [High/Medium/Low across agents]\n- Confidence: [Will be calculated by system] - [High/Moderate/Low]\n\n### DETAILED MARKET COMPARISON TABLE\n| Signal | User Rate | Market Data | Agent Consensus | Gap Analysis |\n|--------|-----------|-------------|-----------------|--------------|\n| AI Chip | X% | [Data] | [Finding] | [Variance] |\n| Crypto | X% | [Data] | [Finding] | [Variance] |\n| EV | X% | [Data] | [Finding] | [Variance] |\n| Supply Risk | X% | [Data] | [Finding] | [Variance] |\n| Regulatory | X% | [Data] | [Finding] | [Variance] |\n| Consumer | X% | [Data] | [Finding] | [Variance] |\n\n### CROSS-VALIDATION TABLE\n| Category | Market Data | Internal Context | Agent Consensus | Status | Implication |\n|----------|-------------|------------------|-----------------|--------|-------------|\n| [Topic] | [Finding] | [Document] | [Agreement] | [Aligned/Conflict] | [Impact] |\n\n### STRATEGIC INSIGHTS\n**Reinforcing Patterns**: [Where agents and data align]\n**Critical Discrepancies**: [Where conflicts exist]\n**Data Gaps**: [What's missing]\n\n### TOP 3 DECISION FACTORS\n**Factor 1**: [Name]\n- Influence Source: [Which agents/data]\n- Recommended Solution: [Action]\n- Company Benefit: [Expected impact]\n\n**Factor 2**: [Name]\n- Influence Source: [Which agents/data]\n- Recommended Solution: [Action]\n- Company Benefit: [Expected impact]\n\n**Factor 3**: [Name]\n- Influence Source: [Which agents/data]\n- Recommended Solution: [Action]\n- Company Benefit: [Expected impact]\n\n### STRATEGIC RECOMMENDATIONS\n**Immediate Actions (30 days)**:\n1. [Action with rationale]\n2. [Action with rationale]\n\n**Strategic Initiatives (60-90 days)**:\n1. [Initiative with rationale]\n2. [Initiative with rationale]\n\n### RISK/OPPORTUNITY MATRIX\n**High Confidence Opportunities**: [Validated by multiple agents]\n**High Risk Concerns**: [Validated risks requiring attention]\n**Moderate Confidence Items**: [Single-source insights]\n\n### EXECUTIVE DECISION FRAMEWORK\n- Go/No-Go Criteria: [Decision thresholds]\n- Resource Prioritization: [ROI-ranked initiatives]\n- Success KPIs: [Measurable outcomes]\n\n### LIMITATIONS & FOLLOW-UP\n**Data Quality Issues**: [Agent-specific problems]\n**Validation Needed**: [Additional research required]\n**Confidence Improvement Actions**: [What would increase certainty]\n\n### AGENT RELIABILITY ASSESSMENT\n**HHH Scores by Agent**:\n- Market Data Analysis: [Helpful: X | Harmless: X | Honest: X] = Avg: X.XX%\n- Market Intelligence: [Helpful: X | Harmless: X | Honest: X] = Avg: X.XX%\n- Strategic Analysis: [Helpful: X | Harmless: X | Honest: X] = Avg: X.XX%\n- Risk Management: [Helpful: X | Harmless: X | Honest: X] = Avg: X.XX%\n- Competitive Analysis: [Helpful: X | Harmless: X | Honest: X] = Avg: X.XX%\n\n**CONFIDENCE SCORE CALCULATION**:\n\nStep 1: Calculate base score using weighted formula\n- Show your calculation: (Market Data × 0.25) + (Market Intelligence × 0.25) + (Strategic × 0.20) + (Risk × 0.15) + (Competitive × 0.15) = XX.XX%\n\nStep 2: Select ONE adjustment that best applies\nChoose the most applicable:\n- Strong cross-agent agreement on key findings: +8%\n- Moderate agreement with some conflicts: 0%\n- Major conflicts between agents OR missing critical data: -7%\n\nWrite: \"Selected adjustment: [+8% OR 0% OR -7%] because [brief reason]\"\n\nStep 3: Note the final calculation\n- Base Score: XX.XX%\n- Adjustment: [your selection from Step 2]\n- Final Confidence Score = Base + Adjustment (system will calculate)\n\n**Most Reliable Agent**: [Name with highest HHH score]\n**Least Reliable Agent**: [Name with lowest HHH score]\n\nCRITICAL INSTRUCTIONS:\n1. Score each agent honestly using HHH criteria - show all three scores (Helpful, Harmless, Honest) and calculate the average\n2. Use the exact format for HHH scores: [Helpful: X | Harmless: X | Honest: X] = Avg: X.XX%\n3. In Step 2, clearly state which adjustment you selected (+8%, 0%, or -7%) and why\n4. Do NOT attempt to add the numbers in Step 3 - the system handles final calculation\n5. Focus on quality analysis - the confidence math is automated\n6. Flag conflicts explicitly between agents\n7. Maintain executive brevity while being thorough\n8. Prioritize agent data and user context first, supplement with semiconductor knowledge where relevant\n\nThe system will automatically calculate the final confidence score from your HHH evaluations and selected adjustment.",
+        "text": "=Synthesize the following 5 agent analyses into an executive strategic report:\n\n**User Strategic Question:** {{ $('Extract Form Data').item.json.strategic_question }}\n\n**User Context:**\n- Company: {{ $('Extract Form Data').item.json.company_name }}\n- Role: {{ $('Extract Form Data').item.json.job_function }}\n- Market Intelligence: {{ $('Extract Form Data').item.json.market_intelligence }}\n- Strategic Context: {{ $('Extract Form Data').item.json.strategic_context }}\n- Risk Factors: {{ $('Extract Form Data').item.json.risk_factors }}\n- Competitive Landscape: {{ $('Extract Form Data').item.json.competitive_landscape }}\n- Organizational Insights: {{ $('Extract Form Data').item.json.organizational_insights }}\n\n**User Market Signal Rates:**\n- AI Chip Demand: {{ $('Extract Form Data').item.json.user_ai_chip_rate }}%\n- Crypto Mining: {{ $('Extract Form Data').item.json.user_crypto_rate }}%\n- EV Components: {{ $('Extract Form Data').item.json.user_ev_rate }}%\n- Supply Chain Risk: {{ $('Extract Form Data').item.json.user_supply_risk }}%\n- Regulatory Risk: {{ $('Extract Form Data').item.json.user_regulatory }}%\n- Consumer Electronics: {{ $('Extract Form Data').item.json.user_consumer_rate }}%\n\n**AGENT ANALYSES:**\n\n**1. Market Data Analysis:**\n{{ $('Market Data Agent').item.json.choices[0].message.content }}\n\n**2. Market Intelligence:**\n{{ $('Market Intelligence Agent').item.json.choices[0].message.content }}\n\n**3. Strategic Analysis:**\n{{ $('Strategic Analysis Agent').item.json.choices[0].message.content }}\n\n**4. Risk Management:**\n{{ $('Risk Management Agent').item.json.choices[0].message.content }}\n\n**5. Competitive Analysis:**\n{{ $('Competitive Analysis Agent').item.json.choices[0].message.content }}\n\nSynthesize these analyses following the output structure exactly."
+      },
+      "id": "agent-synthesizer",
+      "name": "Final Synthesizer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1850, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get synthesizer output\nlet synthesizerOutput = $input.first().json;\n\n// Handle if output is an array\nif (Array.isArray(synthesizerOutput) && synthesizerOutput.length > 0) {\n  synthesizerOutput = synthesizerOutput[0];\n}\n\nlet synthesizedReport = '';\n\n// Validate synthesizer output structure\nif (synthesizerOutput && synthesizerOutput.message && synthesizerOutput.message.content) {\n  synthesizedReport = synthesizerOutput.message.content;\n} else if (synthesizerOutput && synthesizerOutput.choices && synthesizerOutput.choices[0] && synthesizerOutput.choices[0].message) {\n  synthesizedReport = synthesizerOutput.choices[0].message.content;\n}\n\n// Get user context data from Extract Form Data node\nconst formData = $('Extract Form Data').first().json;\n\n// Extract sections\nconst extractSection = (patterns) => {\n  if (!synthesizedReport) {\n    return '';\n  }\n  \n  for (const pattern of patterns) {\n    const match = synthesizedReport.match(pattern);\n    if (match && match[1] && match[1].trim().length > 10) {\n      return match[1].trim();\n    }\n  }\n  return '';\n};\n\n// Calculate confidence score from HHH values\nconst calculateConfidenceScore = () => {\n  if (!synthesizedReport) return '';\n  \n  // Extract HHH average scores for each agent\n  const extractHHH = (agentName) => {\n    const pattern = new RegExp(agentName + ':\\\\s*\\\\[Helpful:\\\\s*(\\\\d+)\\\\s*\\\\|\\\\s*Harmless:\\\\s*(\\\\d+)\\\\s*\\\\|\\\\s*Honest:\\\\s*(\\\\d+)\\\\]\\\\s*=\\\\s*Avg:\\\\s*(\\\\d+\\\\.?\\\\d*)', 'i');\n    const match = synthesizedReport.match(pattern);\n    \n    if (match && match[4]) {\n      return parseFloat(match[4]);\n    }\n    return 0;\n  };\n  \n  const scores = {\n    marketData: extractHHH('Market Data Analysis'),\n    marketIntel: extractHHH('Market Intelligence'),\n    strategic: extractHHH('Strategic Analysis'),\n    risk: extractHHH('Risk Management'),\n    competitive: extractHHH('Competitive Analysis')\n  };\n  \n  console.log('Extracted HHH scores:', scores);\n  \n  // Calculate base score using weighted formula\n  const baseScore = (scores.marketData * 0.25) + \n                    (scores.marketIntel * 0.25) + \n                    (scores.strategic * 0.20) + \n                    (scores.risk * 0.15) + \n                    (scores.competitive * 0.15);\n  \n  console.log('Base score:', baseScore);\n  \n  // Extract adjustment from agent's Step 2\n  let adjustment = 0;\n  \n  if (synthesizedReport.match(/Selected adjustment:\\\\s*\\\\+8%/i) || \n      synthesizedReport.match(/Strong.*?agreement.*?\\\\+8%/i)) {\n    adjustment = 8;\n  } else if (synthesizedReport.match(/Selected adjustment:\\\\s*-7%/i) || \n             synthesizedReport.match(/Major conflicts.*?-7%/i)) {\n    adjustment = -7;\n  } else if (synthesizedReport.match(/Selected adjustment:\\\\s*0%/i) ||\n             synthesizedReport.match(/Moderate agreement.*?0%/i)) {\n    adjustment = 0;\n  }\n  \n  console.log('Adjustment:', adjustment);\n  \n  // Calculate final confidence score\n  const finalScore = baseScore + adjustment;\n  \n  console.log('Final confidence score:', finalScore);\n  \n  if (isNaN(finalScore)) {\n    return '';\n  }\n  \n  return finalScore.toFixed(2);\n};\n\n// Build output with calculated confidence score\nreturn {\n  json: {\n    report_id: 'RPT-' + Date.now(),\n    timestamp: new Date().toISOString(),\n    user_email: formData.user_email,\n    company_name: formData.company_name,\n    job_function: formData.job_function,\n    strategic_question: formData.strategic_question,\n    confidence_score: calculateConfidenceScore(),\n    pdf_included: formData.pdf_processed,\n    full_report: synthesizedReport,\n    executive_summary: extractSection([/### EXECUTIVE SUMMARY([\\s\\S]*?)(?=###|$)/i, /### INTEGRATED ANALYSIS SUMMARY([\\s\\S]*?)(?=###|$)/i]),\n    market_comparison: extractSection([/### DETAILED MARKET COMPARISON TABLE([\\s\\S]*?)(?=###|$)/i]),\n    cross_validation: extractSection([/### CROSS-VALIDATION TABLE([\\s\\S]*?)(?=###|$)/i]),\n    strategic_insights: extractSection([/### STRATEGIC INSIGHTS([\\s\\S]*?)(?=###|$)/i]),\n    decision_factors: extractSection([/### TOP 3 DECISION FACTORS([\\s\\S]*?)(?=###|$)/i]),\n    recommendations: extractSection([/### STRATEGIC RECOMMENDATIONS([\\s\\S]*?)(?=###|$)/i]),\n    risk_matrix: extractSection([/### RISK\\/OPPORTUNITY MATRIX([\\s\\S]*?)(?=###|$)/i]),\n    executive_framework: extractSection([/### EXECUTIVE DECISION FRAMEWORK([\\s\\S]*?)(?=###|$)/i]),\n    limitations: extractSection([/### LIMITATIONS & FOLLOW-UP([\\s\\S]*?)(?=###|$)/i]),\n    reliability: extractSection([/### AGENT RELIABILITY ASSESSMENT([\\s\\S]*?)$/i]),\n    ai_chip_rate: formData.user_ai_chip_rate,\n    crypto_rate: formData.user_crypto_rate,\n    ev_rate: formData.user_ev_rate,\n    supply_risk: formData.user_supply_risk,\n    regulatory: formData.user_regulatory,\n    consumer_rate: formData.user_consumer_rate,\n    session_id: formData.session_id\n  }\n};"
+      },
+      "id": "code-extract-validate",
+      "name": "Extract & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": "",
+        "title": "={{ 'StratAI Report - ' + $json.company_name + ' - ' + $now.format('YYYY-MM-DD HH:mm') }}",
+        "body": "={{ $json.full_report }}",
+        "options": {}
+      },
+      "id": "google-docs-create",
+      "name": "Create Google Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [2250, 200],
+      "credentials": {
+        "googleApi": {
+          "id": "2",
+          "name": "Google API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list",
+          "cachedResultName": "StratAI Reports"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Reports",
+          "mode": "list",
+          "cachedResultName": "Reports"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "report_id": "={{ $json.report_id }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "user_email": "={{ $json.user_email }}",
+            "company_name": "={{ $json.company_name }}",
+            "job_function": "={{ $json.job_function }}",
+            "strategic_question": "={{ $json.strategic_question }}",
+            "confidence_score": "={{ $json.confidence_score }}",
+            "ai_chip_rate": "={{ $json.ai_chip_rate }}",
+            "supply_risk": "={{ $json.supply_risk }}",
+            "session_id": "={{ $json.session_id }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "airtable-save",
+      "name": "Save to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [2250, 400],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "3",
+          "name": "Airtable API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"report_id\": $json.report_id,\n  \"confidence_score\": $json.confidence_score,\n  \"google_doc_url\": $('Create Google Doc').item.json.documentUrl || '',\n  \"timestamp\": $json.timestamp,\n  \"message\": \"Strategic analysis complete. Report generated successfully.\"\n} }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Form Submit": {
+      "main": [[{"node": "Extract Form Data", "type": "main", "index": 0}]]
+    },
+    "Extract Form Data": {
+      "main": [[{"node": "IF - PDF Exists", "type": "main", "index": 0}]]
+    },
+    "IF - PDF Exists": {
+      "main": [
+        [{"node": "PDF Parser", "type": "main", "index": 0}],
+        [{"node": "Merge PDF Data", "type": "main", "index": 1}]
+      ]
+    },
+    "PDF Parser": {
+      "main": [[{"node": "Merge PDF Data", "type": "main", "index": 0}]]
+    },
+    "Merge PDF Data": {
+      "main": [[
+        {"node": "Market Data Agent", "type": "main", "index": 0},
+        {"node": "Market Intelligence Agent", "type": "main", "index": 0},
+        {"node": "Strategic Analysis Agent", "type": "main", "index": 0},
+        {"node": "Risk Management Agent", "type": "main", "index": 0},
+        {"node": "Competitive Analysis Agent", "type": "main", "index": 0}
+      ]]
+    },
+    "Market Data Agent": {
+      "main": [[{"node": "Merge All Agents", "type": "main", "index": 0}]]
+    },
+    "Market Intelligence Agent": {
+      "main": [[{"node": "Merge All Agents", "type": "main", "index": 1}]]
+    },
+    "Strategic Analysis Agent": {
+      "main": [[{"node": "Merge All Agents", "type": "main", "index": 2}]]
+    },
+    "Risk Management Agent": {
+      "main": [[{"node": "Merge All Agents", "type": "main", "index": 3}]]
+    },
+    "Competitive Analysis Agent": {
+      "main": [[{"node": "Merge All Agents", "type": "main", "index": 4}]]
+    },
+    "Merge All Agents": {
+      "main": [[{"node": "Final Synthesizer", "type": "main", "index": 0}]]
+    },
+    "Final Synthesizer": {
+      "main": [[{"node": "Extract & Validate", "type": "main", "index": 0}]]
+    },
+    "Extract & Validate": {
+      "main": [[
+        {"node": "Create Google Doc", "type": "main", "index": 0},
+        {"node": "Save to Airtable", "type": "main", "index": 0}
+      ]]
+    },
+    "Create Google Doc": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    },
+    "Save to Airtable": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-18T00:00:00.000Z",
+  "versionId": "1"
+}
