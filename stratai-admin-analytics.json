@@ -1,0 +1,107 @@
+{
+  "name": "StratAI - Admin Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "stratai-analytics",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-analytics",
+      "name": "Webhook - Analytics",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Reports",
+          "mode": "list"
+        },
+        "options": {
+          "sort": {
+            "sortFieldsUi": {
+              "sortField": [
+                {
+                  "fieldName": "timestamp",
+                  "order": "desc"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "id": "get-all-reports",
+      "name": "Get All Reports",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Feedback",
+          "mode": "list"
+        }
+      },
+      "id": "get-all-feedback",
+      "name": "Get All Feedback",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reports = $('Get All Reports').all();\nconst feedbacks = $('Get All Feedback').all();\n\n// Calculate analytics\nconst totalReports = reports.length;\nconst avgConfidence = reports.reduce((sum, r) => sum + parseFloat(r.json.fields.confidence_score || 0), 0) / totalReports;\n\nconst totalFeedback = feedbacks.length;\nconst avgRating = feedbacks.reduce((sum, f) => sum + parseInt(f.json.fields.rating || 0), 0) / totalFeedback;\n\n// Count by company\nconst companyCounts = {};\nreports.forEach(r => {\n  const company = r.json.fields.company_name || 'Unknown';\n  companyCounts[company] = (companyCounts[company] || 0) + 1;\n});\n\n// Recent reports\nconst recentReports = reports.slice(0, 10).map(r => ({\n  report_id: r.json.fields.report_id,\n  company: r.json.fields.company_name,\n  confidence: r.json.fields.confidence_score,\n  timestamp: r.json.fields.timestamp\n}));\n\nreturn {\n  json: {\n    total_reports: totalReports,\n    avg_confidence_score: avgConfidence.toFixed(2),\n    total_feedback: totalFeedback,\n    avg_rating: avgRating.toFixed(2),\n    reports_by_company: companyCounts,\n    recent_reports: recentReports,\n    generated_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "calculate-analytics",
+      "name": "Calculate Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "respond-analytics",
+      "name": "Respond Analytics",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Analytics": {
+      "main": [[
+        {"node": "Get All Reports", "type": "main", "index": 0},
+        {"node": "Get All Feedback", "type": "main", "index": 0}
+      ]]
+    },
+    "Get All Reports": {
+      "main": [[{"node": "Calculate Analytics", "type": "main", "index": 0}]]
+    },
+    "Get All Feedback": {
+      "main": [[{"node": "Calculate Analytics", "type": "main", "index": 0}]]
+    },
+    "Calculate Analytics": {
+      "main": [[{"node": "Respond Analytics", "type": "main", "index": 0}]]
+    }
+  }
+}
