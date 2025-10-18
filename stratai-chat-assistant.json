@@ -1,0 +1,99 @@
+{
+  "name": "StratAI - AI Chat Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stratai-chat",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-chat",
+      "name": "Webhook - Chat",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatData = $input.first().json.body || $input.first().json;\n\nreturn {\n  json: {\n    session_id: chatData.session_id || '',\n    user_message: chatData.message || '',\n    report_id: chatData.report_id || '',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "extract-chat-input",
+      "name": "Extract Chat Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "your-airtable-base-id",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Reports",
+          "mode": "list"
+        },
+        "filterByFormula": "={{ '{report_id} = \"' + $json.report_id + '\"' }}"
+      },
+      "id": "get-report-context",
+      "name": "Get Report from Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-5-sonnet-20241022",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 2000
+        },
+        "systemMessage": "You are StratAI Chat Assistant, an expert in semiconductor market intelligence and strategic analysis.\n\nYour role: Answer follow-up questions about the strategic report generated for the user. Provide clarifications, dive deeper into specific sections, and help executives understand the analysis.\n\nCapabilities:\n- Explain confidence scores and HHH evaluation methodology\n- Clarify agent analyses and cross-validation results\n- Provide additional context on semiconductor market dynamics\n- Suggest next steps based on the strategic recommendations\n- Answer questions about specific data points or assumptions\n\nContext available:\n- Full strategic report\n- User's original question and context\n- Confidence scores and agent assessments\n\nResponse guidelines:\n- Be concise but thorough (executive audience)\n- Reference specific sections from the report when relevant\n- If asked about something not in the report, acknowledge limitation\n- Offer to explore related topics or suggest follow-up analyses\n- Maintain professional, confident tone\n\nYou have access to the complete strategic analysis report. Use it to provide informed, contextual responses.",
+        "text": "=User question: {{ $json.user_message }}\n\n**Context from Strategic Report:**\n\n**Strategic Question:** {{ $('Get Report from Airtable').item.json.fields.strategic_question }}\n\n**Company:** {{ $('Get Report from Airtable').item.json.fields.company_name }}\n\n**Confidence Score:** {{ $('Get Report from Airtable').item.json.fields.confidence_score }}%\n\n**Report Summary:**\n{{ $('Get Report from Airtable').item.json.fields.executive_summary || 'Full report available' }}\n\nProvide a helpful, executive-level response to the user's question based on the strategic analysis."
+      },
+      "id": "claude-chat",
+      "name": "Claude Chat Response",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "anthropicApi": {
+          "id": "4",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"response\": $json.choices[0].message.content || $json.content,\n  \"timestamp\": $('Extract Chat Input').item.json.timestamp,\n  \"session_id\": $('Extract Chat Input').item.json.session_id\n} }}"
+      },
+      "id": "respond-chat",
+      "name": "Respond Chat",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Chat": {
+      "main": [[{"node": "Extract Chat Input", "type": "main", "index": 0}]]
+    },
+    "Extract Chat Input": {
+      "main": [[{"node": "Get Report from Airtable", "type": "main", "index": 0}]]
+    },
+    "Get Report from Airtable": {
+      "main": [[{"node": "Claude Chat Response", "type": "main", "index": 0}]]
+    },
+    "Claude Chat Response": {
+      "main": [[{"node": "Respond Chat", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
