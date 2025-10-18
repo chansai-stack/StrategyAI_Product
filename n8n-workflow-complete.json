@@ -1,0 +1,184 @@
+{
+  "name": "StratAI - Multi-Agent Strategic Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stratai-submit",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [50, 300],
+      "webhookId": "stratai-webhook-id"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Form Data code from above"
+      },
+      "name": "Extract Form Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "systemMessage": "Market Data Agent prompt..."
+      },
+      "name": "Market Data Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 100]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "systemMessage": "Market Intelligence Agent prompt..."
+      },
+      "name": "Market Intelligence Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "systemMessage": "Strategic Analysis Agent prompt..."
+      },
+      "name": "Strategic Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "systemMessage": "Risk Management Agent prompt..."
+      },
+      "name": "Risk Management Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "systemMessage": "Competitive Analysis Agent prompt..."
+      },
+      "name": "Competitive Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {},
+      "name": "Merge Agents",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "systemMessage": "Final Synthesizer prompt from above..."
+      },
+      "name": "Final Synthesizer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract & Validate code from above"
+      },
+      "name": "Extract & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": "",
+        "title": "={{ 'StratAI Report - ' + $json.company_name + ' - ' + $json.timestamp }}",
+        "body": "={{ $json.full_report }}"
+      },
+      "name": "Create Google Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "base": "your-airtable-base-id",
+        "table": "Reports",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "report_id": "={{ $json.report_id }}",
+            "user_email": "={{ $json.user_email }}",
+            "company_name": "={{ $json.company_name }}",
+            "confidence_score": "={{ $json.confidence_score }}",
+            "timestamp": "={{ $json.timestamp }}"
+          }
+        }
+      },
+      "name": "Save to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [2050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Extract Form Data", "type": "main", "index": 0}]]
+    },
+    "Extract Form Data": {
+      "main": [
+        [
+          {"node": "Market Data Agent", "type": "main", "index": 0},
+          {"node": "Market Intelligence Agent", "type": "main", "index": 0},
+          {"node": "Strategic Analysis Agent", "type": "main", "index": 0},
+          {"node": "Risk Management Agent", "type": "main", "index": 0},
+          {"node": "Competitive Analysis Agent", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Market Data Agent": {
+      "main": [[{"node": "Merge Agents", "type": "main", "index": 0}]]
+    },
+    "Market Intelligence Agent": {
+      "main": [[{"node": "Merge Agents", "type": "main", "index": 1}]]
+    },
+    "Strategic Analysis Agent": {
+      "main": [[{"node": "Merge Agents", "type": "main", "index": 2}]]
+    },
+    "Risk Management Agent": {
+      "main": [[{"node": "Merge Agents", "type": "main", "index": 3}]]
+    },
+    "Competitive Analysis Agent": {
+      "main": [[{"node": "Merge Agents", "type": "main", "index": 4}]]
+    },
+    "Merge Agents": {
+      "main": [[{"node": "Final Synthesizer", "type": "main", "index": 0}]]
+    },
+    "Final Synthesizer": {
+      "main": [[{"node": "Extract & Validate", "type": "main", "index": 0}]]
+    },
+    "Extract & Validate": {
+      "main": [
+        [
+          {"node": "Create Google Doc", "type": "main", "index": 0},
+          {"node": "Save to Airtable", "type": "main", "index": 0}
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  }
+}
